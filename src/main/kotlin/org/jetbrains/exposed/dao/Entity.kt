@@ -62,14 +62,14 @@ class BackReference<ParentID:Comparable<ParentID>, out Parent:Entity<ParentID>, 
                     (reference: Column<EntityID<ChildID>>, factory: EntityClass<ParentID, Parent>) {
     private val delegate = Referrers(reference, factory, true)
 
-    operator fun getValue(o: Child, desc: KProperty<*>) = delegate.getValue(o.apply { o.id.value }, desc).single() // flush entity before to don't miss newly created entities
+    operator fun getValue(o: Child, desc: KProperty<*>?) = delegate.getValue(o.apply { o.id.value }, desc).single() // flush entity before to don't miss newly created entities
 }
 
 class OptionalBackReference<ParentID:Comparable<ParentID>, out Parent:Entity<ParentID>, ChildID:Comparable<ChildID>, in Child:Entity<ChildID>>
                     (reference: Column<EntityID<ChildID>?>, factory: EntityClass<ParentID, Parent>) {
     private val delegate = OptionalReferrers(reference, factory, true)
 
-    operator fun getValue(o: Child, desc: KProperty<*>) = delegate.getValue(o.apply { o.id.value }, desc).singleOrNull()  // flush entity before to don't miss newly created entities
+    operator fun getValue(o: Child, desc: KProperty<*>?) = delegate.getValue(o.apply { o.id.value }, desc).singleOrNull()  // flush entity before to don't miss newly created entities
 }
 
 class Referrers<ParentID:Comparable<ParentID>, in Parent:Entity<ParentID>, ChildID:Comparable<ChildID>, out Child:Entity<ChildID>>
@@ -82,7 +82,7 @@ class Referrers<ParentID:Comparable<ParentID>, in Parent:Entity<ParentID>, Child
         }
     }
 
-    operator fun getValue(o: Parent, desc: KProperty<*>): SizedIterable<Child> {
+    operator fun getValue(o: Parent, desc: KProperty<*>?): SizedIterable<Child> {
         if (o.id._value == null) return emptySized()
         val query = {factory.find{reference eq o.id}}
         return if (cache) TransactionManager.current().entityCache.getOrPutReferrers(o.id, reference, query) else query()
@@ -99,7 +99,7 @@ class OptionalReferrers<ParentID:Comparable<ParentID>, in Parent:Entity<ParentID
         }
     }
 
-    operator fun getValue(o: Parent, desc: KProperty<*>): SizedIterable<Child> {
+    operator fun getValue(o: Parent, desc: KProperty<*>?): SizedIterable<Child> {
         if (o.id._value == null) return emptySized()
         val query = {factory.find{reference eq o.id}}
         return if (cache) TransactionManager.current().entityCache.getOrPutReferrers(o.id, reference, query)  else query()
@@ -116,7 +116,7 @@ class View<out Target: Entity<*>> (val op : Op<Boolean>, val factory: EntityClas
     override fun notForUpdate(): SizedIterable<Target> = factory.find(op).notForUpdate()
 
     operator override fun iterator(): Iterator<Target> = factory.find(op).iterator()
-    operator fun getValue(o: Any?, desc: KProperty<*>): SizedIterable<Target> = factory.find(op)
+    operator fun getValue(o: Any?, desc: KProperty<*>?): SizedIterable<Target> = factory.find(op)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -132,7 +132,7 @@ class InnerTableLink<ID:Comparable<ID>, Target: Entity<ID>>(val table: Table,
         return sourceRefColumn
     }
 
-    operator fun getValue(o: Entity<*>, desc: KProperty<*>): SizedIterable<Target> {
+    operator fun getValue(o: Entity<*>, desc: KProperty<*>?): SizedIterable<Target> {
         if (o.id._value == null) return emptySized()
         val sourceRefColumn = getSourceRefColumn(o)
         val alreadyInJoin = (target.dependsOnTables as? Join)?.alreadyInJoin(table)?: false
@@ -191,7 +191,7 @@ open class Entity<ID:Comparable<ID>>(val id: EntityID<ID>) {
         _readValues!!
     }
 
-    operator fun <RID:Comparable<RID>, T: Entity<RID>> Reference<RID, T>.getValue(o: Entity<ID>, desc: KProperty<*>): T {
+    operator fun <RID:Comparable<RID>, T: Entity<RID>> Reference<RID, T>.getValue(o: Entity<ID>, desc: KProperty<*>?): T {
         val id = reference.getValue(o, desc)
         return factory.findById(id) ?: error("Cannot find ${factory.table.tableName} WHERE id=$id")
     }
@@ -202,7 +202,7 @@ open class Entity<ID:Comparable<ID>>(val id: EntityID<ID>) {
         reference.setValue(o, desc, value.id)
     }
 
-    operator fun <RID:Comparable<RID>, T: Entity<RID>> OptionalReference<RID, T>.getValue(o: Entity<ID>, desc: KProperty<*>): T? =
+    operator fun <RID:Comparable<RID>, T: Entity<RID>> OptionalReference<RID, T>.getValue(o: Entity<ID>, desc: KProperty<*>?): T? =
             reference.getValue(o, desc)?.let{factory.findById(it)}
 
     operator fun <RID:Comparable<RID>, T: Entity<RID>> OptionalReference<RID, T>.setValue(o: Entity<ID>, desc: KProperty<*>, value: T?) {
@@ -211,7 +211,7 @@ open class Entity<ID:Comparable<ID>>(val id: EntityID<ID>) {
         reference.setValue(o, desc, value?.id)
     }
 
-    operator fun <T> Column<T>.getValue(o: Entity<ID>, desc: KProperty<*>): T = lookup()
+    operator fun <T> Column<T>.getValue(o: Entity<ID>, desc: KProperty<*>?): T = lookup()
 
     @Suppress("UNCHECKED_CAST")
     fun <T, R:Any> Column<T>.lookupInReadValues(found: (T?) -> R?, notFound: () -> R?): R? =
@@ -244,7 +244,7 @@ open class Entity<ID:Comparable<ID>>(val id: EntityID<ID>) {
         }
     }
 
-    operator fun <TColumn, TReal> ColumnWithTransform<TColumn, TReal>.getValue(o: Entity<ID>, desc: KProperty<*>): TReal =
+    operator fun <TColumn, TReal> ColumnWithTransform<TColumn, TReal>.getValue(o: Entity<ID>, desc: KProperty<*>?): TReal =
             toReal(column.getValue(o, desc))
 
     operator fun <TColumn, TReal> ColumnWithTransform<TColumn, TReal>.setValue(o: Entity<ID>, desc: KProperty<*>, value: TReal) {
