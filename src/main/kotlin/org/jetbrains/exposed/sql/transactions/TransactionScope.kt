@@ -13,7 +13,7 @@ class TransactionStore<T:Any>(val init: (() -> T)? = null) : ReadWriteProperty<A
     private val key = Key<T>()
 
     @Suppress("UNCHECKED_CAST")
-    override fun getValue(thisRef: Any?, property: KProperty<*>?): T? {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T? {
         val currentOrNullTransaction = TransactionManager.currentOrNull()
         return init?.let { currentOrNullTransaction!!.getOrCreate(key, init) } ?: currentOrNullTransaction?.getUserData(key)
     }
